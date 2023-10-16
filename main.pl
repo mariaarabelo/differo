@@ -1,15 +1,16 @@
 :- use_module(library(between)).
+:- use_module(library(lists)).
 
-% Initialize the empty game board with a size of 5 on each side.
+% Initialize the initial game board with a size of 5 on each side.
 empty_board([
     [_, _, _, _, _],
-    [_, _, _, _, _, _],
-    [_, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _],
+    [_, black, black, black, black, _],
+    [_, black, _, black, _, black, _],
+    [_, black, black, black, black, black, black, _],
     [_, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _],
-    [_, _, _, _, _, _],
+    [_, white, white, white, white, white, white, _],
+    [_,  white, _, white, _, white, _],
+    [_, white, white, white, white, _],
     [_, _, _, _, _]
 ]).
 
@@ -45,9 +46,7 @@ print_game_state(State) :-
 % Predicate to print the board.
 print_board(Board) :-
     nl,
-    write('    1 2 3 4 5 6 7 8 9'), nl,
     write('   -------------------'), nl,
-
     print_board(Board, 1).
 
 print_board([], _).
@@ -79,9 +78,6 @@ print_cell(black) :- write('B').
 % Predicate to play the game.
 start_game :-
     initial_state(Board, white, 13, 13),
-    write('betweennnnn'),
-    between(1,5,2),
-    write('fdfds'),
     game_loop(state(Board, white, 13, 13)).
 
 % Inside your game loop
@@ -94,8 +90,10 @@ game_loop(State) :-
 
 % check if position is within bound
 within_bounds(Row, Col) :-
-    between(1, 5, Row),                             % Para as primeiras 5 linhas
-    between(1, (4 + Row), Col).
+    between(1, 5, Row),        
+    MaxCols is 4 + Row,                     
+    % Para as primeiras 5 linhas
+    between(1, MaxCols, Col).
     
 within_bounds(Row, Col) :-
     between(5, 9, Row),                              % Para as linhas restantes
