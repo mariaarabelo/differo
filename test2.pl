@@ -1,3 +1,4 @@
+
 % Initialize the empty game board with a size of 5 on each side.
 empty_board([
     [_, _, _, _, _],
@@ -77,14 +78,14 @@ print_cell(black) :- write('B').
 % Predicate to play the game.
 start_game :-
     initial_state(Board, white, 13, 13),
-    play(state(Board, white, 13, 13)).
+    game_loop(state(Board, white, 13, 13)).
 
 % Inside your game loop
-play(State) :-
+game_loop(State) :-
     print_game_state(State),
     get_move(State, Move),
     apply_move(State, Move, NewState),
-    play(NewState).
+    game_loop(NewState).
 
 
 % check if position is within bound

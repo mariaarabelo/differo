@@ -4,4 +4,4 @@
 %     gcd(Y, XMY, G).
 
 start:-
-    write('Hello World!').
+    write(between(3, 5, 2)).
