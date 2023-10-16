@@ -18,8 +18,8 @@ switch_player(white, black).
 switch_player(black, white).
 
 % Initial game state
-initial_state(Board, Player, WhiteCount, BlackCount) :-
-    empty_board(Board).
+initial_state(Board, white, 13, 13) :- empty_board(Board).
+
 
 play :-
     nl,
@@ -28,7 +28,7 @@ play :-
     read(Option),
     nl,
     (
-        Option = 1 -> play(initial_state(Board, white, 13, 13));
+        Option = 1 -> start_game;
         Option = 2 ->  write('Exiting the game.'), nl, halt
     ).
 
@@ -50,11 +50,27 @@ print_board([Row | RestRows], RowNumber) :-
     nl,
     NewRowNumber is RowNumber + 1,
     print_board(RestRows, NewRowNumber).
-    
+
+print_row(Row) :-
+    length(Row, RowLength),
+    print_cells(Row, 0, RowLength).
+
+print_cells([], _, _).
+print_cells([Cell | Rest], CellNumber, RowLength) :-
+    print_cell(Cell),
+    NextCellNumber is CellNumber + 1,
+    (CellNumber < RowLength - 1 -> write(' '); true), % Add space between cells
+    print_cells(Rest, NextCellNumber, RowLength).
+
+print_cell(empty) :- write(' ').
+print_cell(white) :- write('W').
+print_cell(black) :- write('B').   
 
 % Predicate to play the game.
-play(State) :-
-    state(Board, Player, WhiteCount, BlackCount) = State,
+start_game :-
+    write(' print state'),
+    initial_state(Board, white, 13, 13),
+    write('state'),
     print_board(Board).
 %    get_move(State, Move),
 %    apply_move(State, Move, NewState),
