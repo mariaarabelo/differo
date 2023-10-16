@@ -1,5 +1,4 @@
-use_module(library(between)).
-use_module(library(apply)).
+:- use_module(library(between)).
 
 % Initialize the empty game board with a size of 5 on each side.
 empty_board([
@@ -75,7 +74,7 @@ print_cells([Cell | Rest], CellNumber, RowLength) :-
 
 print_cell(empty) :- write(' ').
 print_cell(white) :- write('W').
-print_cell(black) :- write('B').   
+print_cell(black) :- write('B').
 
 % Predicate to play the game.
 start_game :-
