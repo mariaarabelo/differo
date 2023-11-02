@@ -2,7 +2,7 @@
 :- use_module(library(lists)).
 
 % Initialize the initial game board with a size of 5 on each side.
-empty_board([
+initial_board([
     [none, none, none, none, none],
     [none, black, black, black, black, none],
     [none, black, none, black, none, black, none],
@@ -13,9 +13,6 @@ empty_board([
     [none, white, white, white, white, none],
     [none, none, none, none, none]
 ]).
-
-%state(Board, Player, WhiteCount, BlackCount).
-
 
 % ALL CHECKS FOR POSSIBLE MOVES:
 % 1. Check if the row_index is above, in or below the middle line.
@@ -29,7 +26,7 @@ switch_player(white, black).
 switch_player(black, white).
 
 % Initial game state
-initial_state(Board, white) :- empty_board(Board).
+initial_state(Board, white) :- initial_board(Board).
 
 play :-
     nl,
@@ -42,8 +39,7 @@ play :-
         Option = 2 ->  write('Exiting the game.'), nl
     ).
 
-print_game_state(State) :-
-    state(Board, Player) = State,
+print_game_state(state(Board, Player)) :-
     print_board(Board),
     nl,
     write('Current Player: '), write(Player), nl.
@@ -88,62 +84,38 @@ start_game :-
 % Inside your game loop
 game_loop(State) :-
     print_game_state(State),
-    get_move(State, move(FromRow, FromCol, ToRow, ToCol)),
+    get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
+    !,
     apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
     game_loop(NewState).
 
 %Predicate to get the move from the player.
-get_move(State, move(FromRow, FromCol, ToRow, ToCol)) :-
+get_move(state(Board, Player), Move) :-
     repeat,
-    state(Board, Player) = State,
-    write('Player '), write(Player), write(' move: (e.g., move(1,1,2,2))'),
-    read(move(FromRow, FromCol, ToRow, ToCol)),
-    (
-        valid_move(State,move(FromRow, FromCol, ToRow, ToCol)) ->
-        write('Valid move!'), !; 
-        write('Invalid move! Try again.'), nl,
-        fail
-    ).
+    nl,
+    write('Player '), write(Player), 
+    write(' move: (e.g., move(1,1,2,2).)'), nl,
+    read(Move),
+    valid_move(state(Board, Player), Move),
+    !.
 
-% check if position is within bound
-within_bounds(Row, Col) :-
-    between(1, 5, Row),        
-    MaxCols is 4 + Row,                     
-    % Para as primeiras 5 linhas
-    between(1, MaxCols, Col).
+% Check if the move is valid.
+valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     
-within_bounds(Row, Col) :-
-    between(5, 9, Row),                              % Para as linhas restantes
-    MaxCols is 14 - Row,
-    between(1, MaxCols, Col).
+    % Check if the piece belongs to the player
+    get_piece(Board, FromRow, FromCol, Player),
+    !,
+    write('Valid piece!'), nl,
 
-% Predicate to get the piece at a specific position on the board.
-get_piece(Board, Row, Col, Piece) :-
-    within_bounds(Row, Col),
-    nth1(Row, Board, RowList),
-    nth1(Col, RowList, Piece).
+    % Check if destination is empty
+    get_piece(Board, ToRow, ToCol, none), 
+    !,
+    write('Valid empty destination!'), nl, 
 
-% Predicate to set a piece at a specific position on the board.
-set_piece(Board, Row, Col, Piece, NewBoard) :-
-    within_bounds(Row, Col),
-    nth1(Row, Board, RowList, RestRows),
-    nth1(Col, RowList, _, RestCols),
-    nth1(Row, NewBoard, NewRowList, RestRows),
-    nth1(Col, NewRowList, Piece, RestCols).
-
-% Predicate to check if a move is valid.
-valid_move(State, move(FromRow, FromCol, ToRow, ToCol)) :- 
-    state(Board, Player) = State,
-    get_piece(Board, FromRow, FromCol, Player), % Check if moving own piece
-    within_bounds(ToRow, ToCol),                 % Check if destination is within bounds
-    get_piece(Board, ToRow, ToCol, none),       % Check if destination is empty
-    FromRow \= ToRow,                           % Cannot stay in the same row
-        
-    % Check if the move follows the diagonal path
-    
+    % Check if move follows a diagonal path     
     diagonal_path(FromRow, FromCol, ToRow, ToCol),
-    write('that was a valid diagonal direction! :)'), nl, nl.
-
+    !, write('Valid move!'), nl.
+    
     % count pieces in diagonal (ainda falta)
     
     %count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount),
@@ -156,6 +128,39 @@ valid_move(State, move(FromRow, FromCol, ToRow, ToCol)) :-
 
     % Check if the move respects the step count
     %count_steps(FromRow,  ToRow,  Steps).
+
+
+% check if position is within bound
+within_bounds(Row, Col) :-
+    between(1, 5, Row),        
+    MaxCols is 4 + Row,                     
+    % Para as primeiras 5 linhas
+    between(1, MaxCols, Col).
+    
+within_bounds(Row, Col) :-
+    between(5, 9, Row), 
+    % Para as linhas restantes
+    MaxCols is 14 - Row,
+    between(1, MaxCols, Col).
+
+% Predicate to get the piece at a specific position on the board.
+get_piece(Board, Row, Col, Piece) :-
+    within_bounds(Row, Col),
+    nth1(Row, Board, RowList),
+    nth1(Col, RowList, Piece).
+
+% Error handle for get_piece
+get_piece(_, _, _, _) :-
+    write('Invalid position!'), nl,
+    fail.
+
+% Predicate to set a piece at a specific position on the board.
+set_piece(Board, Row, Col, Piece, NewBoard) :-
+    within_bounds(Row, Col),
+    nth1(Row, Board, RowList, RestRows),
+    nth1(Col, RowList, _, RestCols),
+    nth1(Row, NewBoard, NewRowList, RestRows),
+    nth1(Col, NewRowList, Piece, RestCols).
 
 % Predicate para contar as peças na diagonal entre duas coordenadas.
 count_pieces_in_diagonal(Board, Row1, Col1, Row2, Col2, Player, Count) :-
@@ -174,55 +179,42 @@ count_pieces_in_diagonal(Board, Row1, Col1, Row2, Col2, Player, CurrentCount, Co
     (Piece = Player -> NewCount is CurrentCount + 1 ; NewCount is CurrentCount),
     count_pieces_in_diagonal(Board, NewRow1, NewCol1, Row2, Col2, Player, NewCount, Count).
 
-
 % Predicate to check if a move respects the step count.
 count_steps(Row1, Row2, Steps) :-
     Steps >= abs(Row1 - Row2).
 
-% Define a predicate that checks a condition.
-%above_mid_line(row_index) :- row_index < 5.
-%in_mid_line(row_index) :- row_index = 5.
-%below_mid_line(row_index) :-row_index > 5.
- 
-% Predicate to check if a move follows the diagonal path.
-diagonal_path(Row1, Col1, Row2, Col2) :- 
-    Row1 < 5,
-    (
-        (Row2 =:= Row1 - 1, Col2 =:= Col1 - 1); % Up and left
-        (Row2 =:= Row1 - 1, Col2 =:= Col1);     % Up and right
-        (Row2 =:= Row1 + 1, Col2 =:= Col1);     % Down and left
-        (Row2 =:= Row1 + 1, Col2 =:= Col1 + 1)  % Down and right
-    ),
-    !.
+% top of board
+diagonal_path(Row1, Col1, Row2, Col2) :-
+    (Row1 =<5, Row2=<5),
+    (((Col2-Col1)=:=(Row2-Row1));
+    (Col2=:=Col1)),
+    write('Valid diagonal!'), nl.
 
-diagonal_path(Row1, Col1, Row2, Col2) :- 
-    Row1 = 5,
-    (
-        (Row2 =:= Row1 - 1, Col2 =:= Col1 - 1); % Up and left
-        (Row2 =:= Row1 - 1, Col2 =:= Col1);     % Up and right
-        (Row2 =:= Row1 + 1, Col2 =:= Col1 - 1); % Down and left
-        (Row2 =:= Row1 + 1, Col2 =:= Col1)      % Down and right
-    ),
-    !.
+% bottom of board
+diagonal_path(Row1, Col1, Row2, Col2) :-
+    (Row1 >= 5, Row2 >= 5),
+    (((Col2-Col1) =:= -(Row2-Row1));
+    (Col2=:=Col1)),
+    write('Valid diagonal!'), nl.
 
-diagonal_path(Row1, Col1, Row2, Col2) :- 
-    Row1>5,  
-    (
-        (Row2 =:= Row1 - 1, Col2 =:= Col1);     % Up and left
-        (Row2 =:= Row1 - 1, Col2 =:= Col1 + 1); % Up and right
-        (Row2 =:= Row1 + 1, Col2 =:= Col1-1);   % Down and left
-        (Row2 =:= Row1 + 1, Col2 =:= Col1)      % Down and right
-    ),
-    !.
+% crossing the middle of the board
+diagonal_path(Row1, Col1, Row2, Col2) :-
+    ((Row1=<5, Row2>5);
+    (Row1>=5, Row2<5)),
+    ((Col2==(Col1+(5-Row1)));
+    (Col2==(Col1+(5-Row2)))),
+    write('Valid diagonal!'), nl.
 
+diagonal_path(_Row1, _Col1, _Row2, _Col2) :-
+    write('Invalid diagonal! Try again.'), nl,
+    fail.
 
 % Predicate to apply a valid move and update the game state.
-apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState) :- % Move = move(FromRow, FromCol, ToRow, ToCol)
-    state(Board, Player) = State,
-    
-     % Update the board
+apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState) :- 
+    % Update the board
     set_piece(Board, ToRow, ToCol, Player, TempBoard),
     set_piece(TempBoard, FromRow, FromCol, none, NewBoard),
+
     % Switch player
     switch_player(Player, NewPlayer),
     
