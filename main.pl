@@ -44,35 +44,34 @@ print_game_state(state(Board, Player)) :-
     nl,
     write('Current Player: '), write(Player), nl.
 
-% Predicate to print the board.
 print_board(Board) :-
     nl,
-    write('   -------------------'), nl,
-    print_board(Board, 1).
+    maplist(print_row, Board).
 
-print_board([], _).
-
-print_board([Row | RestRows], RowNumber) :-
+print_spaces(0).
+print_spaces(N) :-
+    N > 0,
     write(' '),
-    write(RowNumber),
-    write(' |'),
-    print_row(Row),
-    nl,
-    NewRowNumber is RowNumber + 1,
-    print_board(RestRows, NewRowNumber).
+    N1 is N - 1,
+    print_spaces(N1).
 
 print_row(Row) :-
-    length(Row, RowLength),
-    print_cells(Row, 0, RowLength).
+    write('    '), % spacing for visual clarity
+    length(Row, Length),
+    RowLength is (9 - Length),
+    print_spaces(RowLength),
+    print_cells(Row),
+    nl.
 
-print_cells([], _, _).
-print_cells([Cell | Rest], CellNumber, RowLength) :-
+print_cells([]).
+print_cells([Cell]) :-
+    print_cell(Cell).
+print_cells([Cell | Rest]) :-
     print_cell(Cell),
-    NextCellNumber is CellNumber + 1,
-    (CellNumber < RowLength - 1 -> write(' '); true), % Add space between cells
-    print_cells(Rest, NextCellNumber, RowLength).
+    write(' '), % space between cells
+    print_cells(Rest).
 
-print_cell(none) :- write(' ').
+print_cell(none) :- write('.'). % use a dot for empty cells for better visibility
 print_cell(white) :- write('W').
 print_cell(black) :- write('B').
 
