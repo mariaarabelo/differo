@@ -46,7 +46,13 @@ print_game_state(state(Board, Player)) :-
 
 print_board(Board) :-
     nl,
-    maplist(print_row, Board).
+    print_board_with_index(Board, 1).
+
+print_board_with_index([], _). % Base case: no more rows
+print_board_with_index([Row|Rest], Index) :-
+    print_row(Row, Index),
+    NextIndex is Index + 1,
+    print_board_with_index(Rest, NextIndex).
 
 print_spaces(0).
 print_spaces(N) :-
@@ -55,13 +61,15 @@ print_spaces(N) :-
     N1 is N - 1,
     print_spaces(N1).
 
-print_row(Row) :-
-    write('    '), % spacing for visual clarity
+print_row(Row, Index) :-
+    write('     '), write(Index), % print the row index followed by a colon
+    write('  '), % spacing for visual clarity
     length(Row, Length),
     RowLength is (9 - Length),
     print_spaces(RowLength),
     print_cells(Row),
     nl.
+
 
 print_cells([]).
 print_cells([Cell]) :-
@@ -82,6 +90,7 @@ start_game :-
 
 % Inside your game loop
 game_loop(State) :-
+    State = state(Board, Player),
     print_game_state(State),
     get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
     apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
