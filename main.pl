@@ -46,7 +46,13 @@ print_game_state(state(Board, Player)) :-
 
 print_board(Board) :-
     nl,
-    maplist(print_row, Board).
+    print_board_with_index(Board, 1).
+
+print_board_with_index([], _). % Base case: no more rows
+print_board_with_index([Row|Rest], Index) :-
+    print_row(Row, Index),
+    NextIndex is Index + 1,
+    print_board_with_index(Rest, NextIndex).
 
 print_spaces(0).
 print_spaces(N) :-
@@ -55,13 +61,15 @@ print_spaces(N) :-
     N1 is N - 1,
     print_spaces(N1).
 
-print_row(Row) :-
-    write('    '), % spacing for visual clarity
+print_row(Row, Index) :-
+    write('     '), write(Index), % print the row index followed by a colon
+    write('  '), % spacing for visual clarity
     length(Row, Length),
     RowLength is (9 - Length),
     print_spaces(RowLength),
     print_cells(Row),
     nl.
+
 
 print_cells([]).
 print_cells([Cell]) :-
@@ -82,11 +90,16 @@ start_game :-
 
 % Inside your game loop
 game_loop(State) :-
+    State = state(Board, Player),
     print_game_state(State),
-    get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
-    !,
-    apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
-    game_loop(NewState).
+    (player_has_won(Board, Player) 
+     ->  write('Player '), write(Player), write(' has won!'), nl;
+        get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
+        !,
+        apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
+        game_loop(NewState)
+    ).
+
 
 %Predicate to get the move from the player.
 get_move(state(Board, Player), Move) :-
@@ -112,21 +125,32 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     write('Valid empty destination!'), nl, 
 
     % Check if move follows a diagonal path     
-    diagonal_path(FromRow, FromCol, ToRow, ToCol),
+    diagonal_ptath(FromRow, FromCol, ToRow, ToCol),
     !, write('Valid move!'), nl.
     
     % count pieces in diagonal (ainda falta)
     
-    %count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount),
-    %write('PlayerCount pieces in diagonal: '), write(PlayerCount), nl,
-    %count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Opponent, OpponentCount),
-    %write('OpponentCount pieces in diagonal: '), write(Opponent), nl,
+    count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount),
+    write('PlayerCount pieces in diagonal: '), write(PlayerCount), nl,
+    count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Opponent, OpponentCount),
+    write('OpponentCount pieces in diagonal: '), write(Opponent), nl,
     
-    %Steps is PlayerCount - OpponentCount,   %calculate steps
-    %Steps > 0,    
+    % Steps is PlayerCount - OpponentCount,   %calculate steps
+    % Steps > 0,    
 
     % Check if the move respects the step count
-    %count_steps(FromRow,  ToRow,  Steps).
+    count_steps(FromRow,  ToRow,  Steps).
+
+%Check if the player white won the match
+player_has_won(Board, white) :-
+    nth1(1, Board, FirstRow),
+    member(white, FirstRow).
+
+%Check if the player black won the match
+player_has_won(Board, black) :-
+    length(Board, Length),
+    nth1(Length, Board, LastRow),
+    member(black, LastRow).
 
 
 % check if position is within bound
