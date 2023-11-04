@@ -84,9 +84,14 @@ start_game :-
 game_loop(State) :-
     print_game_state(State),
     get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
-    !,
     apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
-    game_loop(NewState).
+    (
+        game_over(NewState, Winner), % Check if game is over
+        print_game_state(NewState), % Print final state
+        write('Player '), write(Winner), write(' won!'), nl
+    ;
+        game_loop(NewState) % Continue game if not over
+    ).
 
 %Predicate to get the move from the player.
 get_move(state(Board, Player), Move) :-
@@ -111,22 +116,43 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     !,
     write('Valid empty destination!'), nl, 
 
-    % Check if move follows a diagonal path     
+    % Check if move follows a diagonal path   
     diagonal_path(FromRow, FromCol, ToRow, ToCol),
+    %diagonal_path(FromRow, FromCol, ToRow, ToCol, Direction),
     !, write('Valid move!'), nl.
     
-    % count pieces in diagonal (ainda falta)
-    
-    %count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount),
-    %write('PlayerCount pieces in diagonal: '), write(PlayerCount), nl,
-    %count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Opponent, OpponentCount),
-    %write('OpponentCount pieces in diagonal: '), write(Opponent), nl,
-    
-    %Steps is PlayerCount - OpponentCount,   %calculate steps
-    %Steps > 0,    
+    % Count pieces on diagonal
+%    count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount, OpponentCount),
+%    Steps is PlayerCount - OpponentCount,
+%    Steps > 0,
+%    Steps =:= abs(ToRow-FromRow),
+%    write('Valid move!'), nl.
 
-    % Check if the move respects the step count
-    %count_steps(FromRow,  ToRow,  Steps).
+% Predicate to count the number of player's and opponent's pieces on a diagonal.
+count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount, OpponentCount) :-
+    count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, 0, 0, PlayerCount, OpponentCount).
+
+% Base case: When we reach the destination coordinates.
+count_pieces_on_diagonal(_, Row, Col, Row, Col, _, _, PlayerCount, OpponentCount, PlayerCount, OpponentCount).
+
+% Recursive case: Move along the diagonal and count the pieces.
+count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, Opponent, CurrentPlayerCount, CurrentOpponentCount, PlayerCount, OpponentCount) :-
+    NewRow is (ToRow > FromRow -> FromRow + 1 ; FromRow - 1),
+    NewCol is (ToCol > FromCol -> FromCol + 1 ; FromCol - 1),
+    get_piece(Board, NewRow, NewCol, Piece),
+    (Piece = Player ->
+        NewPlayerCount is CurrentPlayerCount + 1,
+        NewOpponentCount is CurrentOpponentCount
+    ;
+        (Piece = Opponent ->
+            NewPlayerCount is CurrentPlayerCount,
+            NewOpponentCount is CurrentOpponentCount + 1
+        ;
+            NewPlayerCount is CurrentPlayerCount,
+            NewOpponentCount is CurrentOpponentCount
+        )
+    ),
+    count_pieces_on_diagonal(Board, NewRow, NewCol, ToRow, ToCol, Player, Opponent, NewPlayerCount, NewOpponentCount, PlayerCount, OpponentCount).
 
 
 % check if position is within bound
@@ -200,8 +226,10 @@ diagonal_path(Row1, Col1, Row2, Col2) :-
 diagonal_path(Row1, Col1, Row2, Col2) :-
     ((Row1=<5, Row2>5);
     (Row1>=5, Row2<5)),
-    ((Col2==(Col1+(5-Row1)));
-    (Col2==(Col1+(5-Row2)))),
+    ((Col2=:=(Col1+(5-Row1)));
+    (Col2=:=(Col1+(5-Row2)));
+    (Col2=:=(Col1-(5-Row1)));
+    (Col2=:=(Col1-(5-Row2)))),
     write('Valid diagonal!'), nl.
 
 diagonal_path(_Row1, _Col1, _Row2, _Col2) :-
@@ -220,5 +248,33 @@ apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState)
     % Create the new state
     NewState = state(NewBoard, NewPlayer).
 
+% Predicate to get all valid moves of a Player
+valid_moves(state(Board, Player), ListOfMoves) :-
+    findall(Move, valid_move(state(Board, Player), Move), ListOfMoves).
 
+% Predicate that checks if the game is over
+game_over(GameState, white) :-
+    % Check if a white piece has reached row 1
+    piece_reached_row(GameState, white, 1).
 
+game_over(GameState, black) :-
+    % Check if a black piece has reached row 9
+    piece_reached_row(GameState, black, 9).
+
+%game_over(state(Board, white), black) :-
+%    % Check if there are no more valid moves for the current player
+%    valid_moves(state(Board, white), Moves),
+%    Moves == []. % No more valid moves 
+% Current player is loser, Opponent is winner
+
+%game_over(state(Board, black), white) :-
+%    % Check if there are no more valid moves for the current player
+%    valid_moves(state(Board, black), Moves),
+%    Moves == []. % No more valid moves 
+% Current player is loser, Opponent is winner
+    
+
+% Predicate to check if a piece of the given color has reached the specified row
+piece_reached_row(state(Board, _), Player, Row) :-
+    nth1(Row, Board, RowList),
+    member(Player, RowList).
