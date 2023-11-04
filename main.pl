@@ -217,6 +217,78 @@ count_pieces_in_diagonal(Board, Row1, Col1, Row2, Col2, Player, CurrentCount, Co
 count_steps(Row1, Row2, Steps) :-
     Steps >= abs(Row1 - Row2).
 
+% white, top of board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<FromRow,
+    ToRow =< 5, 
+    FromRow =< 5,
+    ToCol-FromCol =:= ToRow-FromRow,
+    write('Valid diagonal up_left!'), nl.
+
+% white, top of board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
+    ToRow<FromRow,
+    ToRow =< 5, 
+    FromRow =< 5,
+    ToCol=:=FromCol,
+    write('Valid diagonal up_right!'), nl.
+    
+% white, bottom of board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<FromRow,
+    ToRow >= 5, 
+    FromRow >= 5,
+    ToCol=:=FromCol,
+    write('Valid diagonal up_left!'), nl.
+
+% white, bottom of board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
+    ToRow<FromRow,
+    ToRow >= 5, 
+    FromRow >= 5,
+    ToCol-FromCol =:= -(ToRow-FromRow),
+    write('Valid diagonal up_right!'), nl.
+
+% white, crossing board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow=<5, 
+    FromRow>5,
+    ((Col2=:=(Col1+(5-Row1)));
+    (Col2=:=(Col1+(5-Row2)));
+    (Col2=:=(Col1-(5-Row1)));
+    (Col2=:=(Col1-(5-Row2)))),
+    write('Valid diagonal!'), nl.
+    
+% white, crossing board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<FromRow,
+    
+
+
+%black, top of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow<FromRow,
+    
+%black, top of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow<FromRow,
+
+%black, bottom of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow<FromRow,
+
+%black, bottom of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow<FromRow,
+
+%black, crossing of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow<FromRow,
+
+%black, crossing of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow<FromRow,
+
 % top of board
 diagonal_path(Row1, Col1, Row2, Col2) :-
     (Row1 =<5, Row2=<5),
