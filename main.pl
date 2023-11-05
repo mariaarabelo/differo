@@ -14,13 +14,6 @@ initial_board([
     [none, none, none, none, none]
 ]).
 
-% ALL CHECKS FOR POSSIBLE MOVES:
-% 1. Check if the row_index is above, in or below the middle line.
-% 2. Check places above the current line.
-% 3. Check places below the current line.
-% 4. Check if the piece can jump other pieces.
-% 5. Check how many moves you can do in a row.
-
 % Predicate to switch the player.
 switch_player(white, black).
 switch_player(black, white).
@@ -89,17 +82,20 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     get_piece(Board, ToRow, ToCol, none), 
 
     % Check if move follows a diagonal path
-    diagonal_path(FromRow, FromCol, ToRow, ToCol, Player, Direction)
-    .
-    %, write(FromRow-FromCol-ToRow-ToCol-Player-Direction), write(' is a valid move!'),  nl.
+    diagonal_path(FromRow, FromCol, ToRow, ToCol, Diagonal),
+    % !, write('Valid move!'), nl,
+    write('Valid move on diagonal: '), write(Diagonal), nl,
 
     % Count pieces on diagonal
-    %count_pieces_in_diagonal(Board, FromRow, FromCol, Player, Direction, PlayerCount, OpponentCount),
+    count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, WhiteCount, BlackCount),
+    
+    write('Number of white pieces: '), write(WhiteCount), nl,
+    write('Number of Black pieces: '), write(BlackCount), nl.
 
-%    Steps is PlayerCount - OpponentCount,
-%    Steps > 0,
-%    Steps =:= abs(ToRow-FromRow),
-%    write('Valid move!'), nl.
+    Steps is PlayerCount - OpponentCount,
+    Steps > 0,
+    Steps =:= abs(ToRow-FromRow),
+    write('Valid move!'), nl.
 
 % Find all valid moves from a position
 valid_moves_from_position(state(Board, Player), FromRow, FromCol, ValidMoves) :-
@@ -115,27 +111,107 @@ valid_moves_from_position(state(Board, Player), FromRow, FromCol, ValidMoves) :-
 count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount, OpponentCount) :-
     count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, 0, 0, PlayerCount, OpponentCount).
 
-% Base case: When we reach the destination coordinates.
-count_pieces_on_diagonal(_, Row, Col, Row, Col, _, _, PlayerCount, OpponentCount, PlayerCount, OpponentCount).
+% Count pieces on diagonal
+count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, WhiteCount, BlackCount) :-
+    get_all_positions(Board, AllPositions), % Retrieve all positions from the board
+    
+    % Iterate over all positions and count the pieces on the diagonal path
+    count_diagonal_pieces(AllPositions, FromRow, FromCol, ToRow, ToCol, 0, 0, WhiteCount, BlackCount).
 
-% Recursive case: Move along the diagonal and count the pieces.
-count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, Opponent, CurrentPlayerCount, CurrentOpponentCount, PlayerCount, OpponentCount) :-
-    NewRow is (ToRow > FromRow -> FromRow + 1 ; FromRow - 1),
-    NewCol is (ToCol > FromCol -> FromCol + 1 ; FromCol - 1),
-    get_piece(Board, NewRow, NewCol, Piece),
-    (Piece = Player ->
-        NewPlayerCount is CurrentPlayerCount + 1,
-        NewOpponentCount is CurrentOpponentCount
-    ;
-        (Piece = Opponent ->
-            NewPlayerCount is CurrentPlayerCount,
-            NewOpponentCount is CurrentOpponentCount + 1
-        ;
-            NewPlayerCount is CurrentPlayerCount,
-            NewOpponentCount is CurrentOpponentCount
-        )
+
+% % Recursive predicate to count player and opponent pieces on the diagonal
+% count_diagonal_pieces([], _, _, _, _, WhiteCount, BlackCount, WhiteCount, BlackCount).
+% count_diagonal_pieces([(Row, Col, Piece)|Rest], FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount) :-
+
+%     ( 
+%         diagonal_path(FromRow, FromCol, Row, Col, _),
+%         diagonal_path(ToRow, ToCol, Row, Col, _)
+%     ) -> (
+%         write('Position validated as a diagonal: '), write(Row), write(','), write(Col), nl,
+%         (
+%             Piece == white -> NewWhiteCount is CurrentWhiteCount + 1, NewBlackCount = CurrentBlackCount
+%         ;
+%             Piece == black -> NewBlackCount is CurrentBlackCount + 1, NewWhiteCount = CurrentWhiteCount
+%         ;
+%             NewWhiteCount = CurrentWhiteCount, NewBlackCount = CurrentBlackCount % No piece or some other piece
+%         )
+%     ) ; (
+%         write('Position NOT validated as a diagonal: '), write(Row), write(','), write(Col), nl,
+%         NewWhiteCount = CurrentWhiteCount, NewBlackCount = CurrentBlackCount
+%     ),
+    
+%     % Recurse over the rest of the positions
+%     count_diagonal_pieces(Rest, FromRow, FromCol, ToRow, ToCol, NewWhiteCount, NewBlackCount, WhiteCount, BlackCount).
+
+count_diagonal_pieces([], _, _, _, _, WhiteCount, BlackCount, WhiteCount, BlackCount).
+count_diagonal_pieces([(Row, Col, Piece)|Rest], FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount) :-
+    ( 
+        diagonal_path(FromRow, FromCol, Row, Col, _),
+        diagonal_path(Row, Col, FromRow, FromCol, _),
+        diagonal_path(ToRow, ToCol, Row, Col, _),
+        diagonal_path(Row, Col, ToRow, ToCol, _)
     ),
-    count_pieces_on_diagonal(Board, NewRow, NewCol, ToRow, ToCol, Player, Opponent, NewPlayerCount, NewOpponentCount, PlayerCount, OpponentCount).
+    !, % Cut here ensures that we don't backtrack over the successful diagonal path.
+    write('Position validated as a diagonal: '), write(Row), write(','), write(Col), nl,
+    update_counts(Piece, CurrentWhiteCount, CurrentBlackCount, NewWhiteCount, NewBlackCount),
+    count_diagonal_pieces(Rest, FromRow, FromCol, ToRow, ToCol, NewWhiteCount, NewBlackCount, WhiteCount, BlackCount).
+
+count_diagonal_pieces([(Row, Col, _)|Rest], FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount) :-
+    % For positions that are not on the diagonal path, we simply continue recursion without updating counts.
+    count_diagonal_pieces(Rest, FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount).
+
+update_counts(white, CurrentWhiteCount, CurrentBlackCount, NewWhiteCount, CurrentBlackCount) :-
+    NewWhiteCount is CurrentWhiteCount + 1.
+
+update_counts(black, CurrentWhiteCount, CurrentBlackCount, CurrentWhiteCount, NewBlackCount) :-
+    NewBlackCount is CurrentBlackCount + 1.
+
+update_counts(_, CurrentWhiteCount, CurrentBlackCount, CurrentWhiteCount, CurrentBlackCount).
+
+
+%  (5,6,7,4)
+
+% top of board
+diagonal_path(Row1, Col1, Row2, Col2, right) :- % (4,4,5,4)
+    (Row1 =<5, Row2=<5),
+    (Col2=:=Col1).
+
+% top of board
+diagonal_path(Row1, Col1, Row2, Col2, left) :- % (4,2,3,1)
+    (Row1 =<5, Row2=<5),
+    ((Col2-Col1)=:=(Row2-Row1)).
+
+% bottom of board
+diagonal_path(Row1, Col1, Row2, Col2, right) :-
+    (Row1 >= 5, Row2 >= 5),
+    ((Col2-Col1) =:= -(Row2-Row1)).
+
+% bottom of board
+diagonal_path(Row1, Col1, Row2, Col2, left) :-
+    (Row1 >= 5, Row2 >= 5),
+    (Col2=:=Col1).
+
+% crossing the middle of the board
+diagonal_path(Row1, Col1, Row2, Col2, right) :-
+    Row1<5,
+    Row2>5,
+    Col2=:=Col1+(5-Row1).
+
+diagonal_path(Row1, Col1, Row2, Col2, right) :-
+    Row1>5,
+    Row2<5,
+    Col2=:=Col1-(5-Row2).
+
+% crossing the middle of the board
+diagonal_path(Row1, Col1, Row2, Col2, left) :-
+    Row1<5,
+    Row2>5,
+    Col2=:=Col1+(5-Row2).
+
+diagonal_path(Row1, Col1, Row2, Col2, left) :-
+    Row1>5,
+    Row2<5,
+    Col2=:=Col1-(5-Row1).
 
 
 % check if position is within bound
@@ -164,108 +240,6 @@ set_piece(Board, Row, Col, Piece, NewBoard) :-
     nth1(Col, RowList, _, RestCols),
     nth1(Row, NewBoard, NewRowList, RestRows),
     nth1(Col, NewRowList, Piece, RestCols).
-
-% white, top of board, up_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-    ToRow<FromRow,
-    ToRow =< 5, 
-    FromRow =< 5,
-    ToCol-FromCol =:= ToRow-FromRow
-.
-   %,write('Valid diagonal up_left!'), nl.
-
-% white, top of board, up_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
-    ToRow<FromRow,
-    ToRow =< 5, 
-    FromRow =< 5,
-    ToCol=:=FromCol.
-    %write('Valid diagonal up_right!'), nl.
-    
-% white, bottom of board, up_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-    ToRow<FromRow,
-    ToRow >= 5, 
-    FromRow >= 5,
-    ToCol=:=FromCol.
-%    write('Valid diagonal up_left!'), nl.
-
-% white, bottom of board, up_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
-    ToRow<FromRow,
-    ToRow >= 5, 
-    FromRow >= 5,
-    ToCol-FromCol =:= -(ToRow-FromRow).
- %   write('Valid diagonal up_right!'), nl.
-
-% white, crossing board, up_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-    ToRow<5, 
-    FromRow>5,
-    (ToCol=:=FromCol+(5-FromRow);
-    ToCol=:=FromCol-(5-ToRow)).
-%    write('Valid diagonal up_left!'), nl. %   6,6->3,4(4=6-(5-3))   4=6-2
-    
-% white, crossing board, up_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-    ToRow<5, 
-    FromRow>5,
-    (ToCol=:=FromCol-(5-FromRow);
-    ToCol=:=FromCol+(5-ToRow)).
-%    write('Valid diagonal up_right!'), nl.
-
-
-%black, top of board, down_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-    ToRow>FromRow,
-    ToRow =< 5,
-    FromRow =< 5,
-    ToCol =:= FromCol.
-%    write('Valid diagonal down_left!'), nl.
-    
-%black, top of board, down_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-    ToRow>FromRow,
-    ToRow =< 5,
-    FromRow =< 5,
-    ToCol-FromCol =:= ToRow-FromRow.
-%    write('Valid diagonal down_right!'), nl.
-
-%black, bottom of board, down_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-    ToRow>FromRow,
-    ToRow >= 5,
-    FromRow >= 5,
-    ToCol-FromCol =:= -(ToRow-FromRow).
-%    write('Valid diagonal down_left!'), nl.
-    
-%black, bottom of board, down_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-    ToRow>FromRow,
-    ToRow >= 5,
-    FromRow >= 5,
-    ToCol =:= FromCol.
-%    write('Valid diagonal down_right!'), nl.
-
-
-%black, crossing of board, down_left
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-    ToRow>FromRow,
-    FromRow < 5,
-    ToRow > 5,
-    (ToCol=:=FromCol-(5-FromRow);%%
-    ToCol=:=FromCol+(5-ToRow)). 
-%    write('Valid diagonal down_left!'), nl.
-
-%black, crossing of board, down_right
-diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-    ToRow>FromRow,
-    FromRow < 5,
-    ToRow > 5,
-    (ToCol=:=FromCol+(5-FromRow);
-    ToCol=:=FromCol-(5-ToRow)).
-%    write('Valid diagonal down_left!'), nl.
-
 
 % Predicate to apply a valid move and update the game state.
 apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState) :- 
