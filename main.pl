@@ -44,44 +44,7 @@ print_game_state(state(Board, Player)) :-
     nl,
     write('Current Player: '), write(Player), nl.
 
-print_board(Board) :-
-    nl,
-    print_board_with_index(Board, 1).
 
-print_board_with_index([], _). % Base case: no more rows
-print_board_with_index([Row|Rest], Index) :-
-    print_row(Row, Index),
-    NextIndex is Index + 1,
-    print_board_with_index(Rest, NextIndex).
-
-print_spaces(0).
-print_spaces(N) :-
-    N > 0,
-    write(' '),
-    N1 is N - 1,
-    print_spaces(N1).
-
-print_row(Row, Index) :-
-    write('     '), write(Index), % print the row index followed by a colon
-    write('  '), % spacing for visual clarity
-    length(Row, Length),
-    RowLength is (9 - Length),
-    print_spaces(RowLength),
-    print_cells(Row),
-    nl.
-
-
-print_cells([]).
-print_cells([Cell]) :-
-    print_cell(Cell).
-print_cells([Cell | Rest]) :-
-    print_cell(Cell),
-    write(' '), % space between cells
-    print_cells(Rest).
-
-print_cell(none) :- write('.'). % use a dot for empty cells for better visibility
-print_cell(white) :- write('W').
-print_cell(black) :- write('B').
 
 % Predicate to play the game.
 start_game :-
@@ -89,12 +52,15 @@ start_game :-
     game_loop(state(Board, white)).
 
 % Inside your game loop
-game_loop(State) :-
-    State = state(Board, Player),
-    print_game_state(State),
-    %print_valid_moves(state(Board, Player)),
-    get_move(State, move(FromRow, FromCol, ToRow, ToCol)), 
-    apply_move(State, move(FromRow, FromCol, ToRow, ToCol), NewState),
+game_loop(state(Board, Player)) :-
+    print_game_state(state(Board, Player)),
+    %print_player_positions(Board, Player),
+    valid_moves_for_current_player(state(Board, Player), ValidMoves),
+    length(ValidMoves, NumberOfMoves),
+    write(NumberOfMoves), nl, 
+    %print_moves(ValidMoves),
+    get_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)), 
+    apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState),
     (
         game_over(NewState, Winner), % Check if game is over
         print_game_state(NewState), % Print final state
@@ -118,155 +84,58 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     
     % Check if the piece belongs to the player
     get_piece(Board, FromRow, FromCol, Player),
-    !,
-    write('Valid piece!'), nl,
 
     % Check if destination is empty
     get_piece(Board, ToRow, ToCol, none), 
-    !,
-    write('Valid empty destination!'), nl, 
-
-    %Validar a direção que o player está movimentando com base na cor dele
 
     % Check if move follows a diagonal path
-    diagonal_path(FromRow, FromCol, ToRow, ToCol, Diagonal),
-    !, write('Valid move!'), nl,
+    diagonal_path(FromRow, FromCol, ToRow, ToCol, Player, Direction)
+    .
+    %, write(FromRow-FromCol-ToRow-ToCol-Player-Direction), write(' is a valid move!'),  nl.
 
     % Count pieces on diagonal
-    count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, Diagonal, PlayerCount, OpponentCount),
-    
-    write('Number of your pieces: '), write(PlayerCount), nl,
-    write('Number of your Opponents pieces: '), write(OpponentCount), nl.
+    %count_pieces_in_diagonal(Board, FromRow, FromCol, Player, Direction, PlayerCount, OpponentCount),
+
 %    Steps is PlayerCount - OpponentCount,
 %    Steps > 0,
 %    Steps =:= abs(ToRow-FromRow),
 %    write('Valid move!'), nl.
 
-% Predicate to get all positions with their contents on the board
-get_all_positions(Board, AllPositions) :-
+% Find all valid moves from a position
+valid_moves_from_position(state(Board, Player), FromRow, FromCol, ValidMoves) :-
     findall(
-        (Row, Col, Content),
+        move(FromRow, FromCol, ToRow, ToCol),
         (
-            nth1(Row, Board, BoardRow),        % Get the row with index
-            nth1(Col, BoardRow, Content)       % Get the content with index
+            valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol))
         ),
-        AllPositions
-    ).
+        ValidMoves
+    ). 
 
+% Predicate to count the number of player's and opponent's pieces on a diagonal.
+count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, PlayerCount, OpponentCount) :-
+    count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, 0, 0, PlayerCount, OpponentCount).
 
-% top of board
-diagonal_path(Row1, Col1, Row2, Col2, right) :- % (4,4,5,4)
-    (Row1 =<5, Row2=<5),
-    (Col2=:=Col1),
-    write('Valid diagonal!'), nl.
+% Base case: When we reach the destination coordinates.
+count_pieces_on_diagonal(_, Row, Col, Row, Col, _, _, PlayerCount, OpponentCount, PlayerCount, OpponentCount).
 
-% top of board
-diagonal_path(Row1, Col1, Row2, Col2, left) :- % (4,2,3,1)
-    (Row1 =<5, Row2=<5),
-    ((Col2-Col1)=:=(Row2-Row1)),
-    write('Valid diagonal!'), nl.
-
-% bottom of board
-diagonal_path(Row1, Col1, Row2, Col2, right) :-
-    (Row1 >= 5, Row2 >= 5),
-    ((Col2-Col1) =:= -(Row2-Row1)),
-    write('Valid diagonal!'), nl.
-
-% bottom of board
-diagonal_path(Row1, Col1, Row2, Col2, left) :-
-    (Row1 >= 5, Row2 >= 5),
-    (Col2=:=Col1),
-    write('Valid diagonal!'), nl.
-
-% crossing the middle of the board
-diagonal_path(Row1, Col1, Row2, Col2, right) :- % (6,2,4,3)
-    ((Row1<5, Row2>5);
-    (Row1>5, Row2<5)),
-    ((Col2=:=(Col1+(5-Row2)));
-    (Col2=:=(Col1-(5-Row1)))),
-    write('Valid diagonal!'), nl.
-
-% crossing the middle of the board
-diagonal_path(Row1, Col1, Row2, Col2, left) :- % (6,2,4,1)
-    ((Row1=<5, Row2>5);
-    (Row1>=5, Row2<5)),
-    ((Col2=:=(Col1+(5-Row1)));
-    (Col2=:=(Col1-(5-Row2)))),
-    write('Valid diagonal!'), nl.
-
-% Count pieces on diagonal
-count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, white, Direction, PlayerCount, OpponentCount) :-
-    get_all_positions(Board, AllPositions), % Retrieve all positions from the board
-
-    % Filter the list of all positions to those that are on the diagonal path from From to To
-    include(
-        ({FromRow, FromCol, ToRow, ToCol, Direction}/[Row, Col, _Piece])>>(
-            diagonal_path(FromRow, FromCol, Row, Col, Direction),
-            diagonal_path(Row, Col, ToRow, ToCol, Direction) % Both from and to must be on the diagonal path
-        ),
-        AllPositions,
-        DiagonalPositions
+% Recursive case: Move along the diagonal and count the pieces.
+count_pieces_on_diagonal(Board, FromRow, FromCol, ToRow, ToCol, Player, Opponent, CurrentPlayerCount, CurrentOpponentCount, PlayerCount, OpponentCount) :-
+    NewRow is (ToRow > FromRow -> FromRow + 1 ; FromRow - 1),
+    NewCol is (ToCol > FromCol -> FromCol + 1 ; FromCol - 1),
+    get_piece(Board, NewRow, NewCol, Piece),
+    (Piece = Player ->
+        NewPlayerCount is CurrentPlayerCount + 1,
+        NewOpponentCount is CurrentOpponentCount
+    ;
+        (Piece = Opponent ->
+            NewPlayerCount is CurrentPlayerCount,
+            NewOpponentCount is CurrentOpponentCount + 1
+        ;
+            NewPlayerCount is CurrentPlayerCount,
+            NewOpponentCount is CurrentOpponentCount
+        )
     ),
-
-    % Count the player's pieces on the diagonal
-    findall(
-        Piece,
-        (
-            member((Row, Col, Piece), DiagonalPositions),
-            Piece =:= white
-        ),
-        PlayerPieces
-    ),
-    length(PlayerPieces, PlayerCount),
-
-    % Count the opponent's pieces on the diagonal
-    findall(
-        Piece,
-        (
-            member((Row, Col, Piece), DiagonalPositions),
-            Piece =:= black
-        ),
-        OpponentPieces
-    ),
-    length(OpponentPieces, OpponentCount).
-
-
-% Count pieces on diagonal
-count_pieces_in_diagonal(Board, FromRow, FromCol, ToRow, ToCol, black, Direction, PlayerCount, OpponentCount) :-
-    get_all_positions(Board, AllPositions), % Retrieve all positions from the board
-
-    % Filter the list of all positions to those that are on the diagonal path from From to To
-    include(
-        ({FromRow, FromCol, ToRow, ToCol, Direction}/[Row, Col, _Piece])>>(
-            diagonal_path(FromRow, FromCol, Row, Col, Direction),
-            diagonal_path(Row, Col, ToRow, ToCol, Direction) % Both from and to must be on the diagonal path
-        ),
-        AllPositions,
-        DiagonalPositions
-    ),
-
-    % Count the player's pieces on the diagonal
-    findall(
-        Piece,
-        (
-            member((Row, Col, Piece), DiagonalPositions),
-            Piece == black
-        ),
-        PlayerPieces
-    ),
-    length(PlayerPieces, PlayerCount),
-
-    % Count the opponent's pieces on the diagonal
-    findall(
-        Piece,
-        (
-            member((Row, Col, Piece), DiagonalPositions),
-            Piece == white
-        ),
-        OpponentPieces
-    ),
-    length(OpponentPieces, OpponentCount).
-
+    count_pieces_on_diagonal(Board, NewRow, NewCol, ToRow, ToCol, Player, Opponent, NewPlayerCount, NewOpponentCount, PlayerCount, OpponentCount).
 
 
 % check if position is within bound
@@ -288,11 +157,6 @@ get_piece(Board, Row, Col, Piece) :-
     nth1(Row, Board, RowList),
     nth1(Col, RowList, Piece).
 
-% Error handle for get_piece
-get_piece(_, _, _, _) :-
-    write('Invalid position!'), nl,
-    fail.
-
 % Predicate to set a piece at a specific position on the board.
 set_piece(Board, Row, Col, Piece, NewBoard) :-
     within_bounds(Row, Col),
@@ -301,105 +165,107 @@ set_piece(Board, Row, Col, Piece, NewBoard) :-
     nth1(Row, NewBoard, NewRowList, RestRows),
     nth1(Col, NewRowList, Piece, RestCols).
 
-% % white, top of board, up_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-%     ToRow<FromRow,
-%     ToRow =< 5, 
-%     FromRow =< 5,
-%     ToCol-FromCol =:= ToRow-FromRow,
-%     write('Valid diagonal up_left!'), nl.
+% white, top of board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<FromRow,
+    ToRow =< 5, 
+    FromRow =< 5,
+    ToCol-FromCol =:= ToRow-FromRow
+.
+   %,write('Valid diagonal up_left!'), nl.
 
-% % white, top of board, up_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
-%     ToRow<FromRow,
-%     ToRow =< 5, 
-%     FromRow =< 5,
-%     ToCol=:=FromCol,
-%     write('Valid diagonal up_right!'), nl.
+% white, top of board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
+    ToRow<FromRow,
+    ToRow =< 5, 
+    FromRow =< 5,
+    ToCol=:=FromCol.
+    %write('Valid diagonal up_right!'), nl.
     
-% % white, bottom of board, up_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-%     ToRow<FromRow,
-%     ToRow >= 5, 
-%     FromRow >= 5,
-%     ToCol=:=FromCol,
-%     write('Valid diagonal up_left!'), nl.
+% white, bottom of board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<FromRow,
+    ToRow >= 5, 
+    FromRow >= 5,
+    ToCol=:=FromCol.
+%    write('Valid diagonal up_left!'), nl.
 
-% % white, bottom of board, up_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
-%     ToRow<FromRow,
-%     ToRow >= 5, 
-%     FromRow >= 5,
-%     ToCol-FromCol =:= -(ToRow-FromRow),
-%     write('Valid diagonal up_right!'), nl.
+% white, bottom of board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_right):-
+    ToRow<FromRow,
+    ToRow >= 5, 
+    FromRow >= 5,
+    ToCol-FromCol =:= -(ToRow-FromRow).
+ %   write('Valid diagonal up_right!'), nl.
 
-% % white, crossing board, up_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-%     ToRow<5, 
-%     FromRow>5,
-%     (ToCol=:=FromCol+(5-FromRow);
-%     ToCol=:=FromCol-(5-ToRow)),
-%     write('Valid diagonal up_left!'), nl. %   6,6->3,4(4=6-(5-3))   4=6-2
+% white, crossing board, up_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<5, 
+    FromRow>5,
+    (ToCol=:=FromCol+(5-FromRow);
+    ToCol=:=FromCol-(5-ToRow)).
+%    write('Valid diagonal up_left!'), nl. %   6,6->3,4(4=6-(5-3))   4=6-2
     
-% % white, crossing board, up_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
-%     ToRow<5, 
-%     FromRow>5,
-%     (ToCol=:=FromCol-(5-FromRow);
-%     ToCol=:=FromCol+(5-ToRow)),
-%     write('Valid diagonal up_right!'), nl.
+% white, crossing board, up_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, white, up_left):-
+    ToRow<5, 
+    FromRow>5,
+    (ToCol=:=FromCol-(5-FromRow);
+    ToCol=:=FromCol+(5-ToRow)).
+%    write('Valid diagonal up_right!'), nl.
 
-% %black, top of board, down_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-%     ToRow>FromRow,
-%     ToRow =< 5,
-%     FromRow =< 5,
-%     ToCol =:= FromCol,
-%     write('Valid diagonal down_left!'), nl.
+
+%black, top of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow>FromRow,
+    ToRow =< 5,
+    FromRow =< 5,
+    ToCol =:= FromCol.
+%    write('Valid diagonal down_left!'), nl.
     
+%black, top of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow>FromRow,
+    ToRow =< 5,
+    FromRow =< 5,
+    ToCol-FromCol =:= ToRow-FromRow.
+%    write('Valid diagonal down_right!'), nl.
+
+%black, bottom of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow>FromRow,
+    ToRow >= 5,
+    FromRow >= 5,
+    ToCol-FromCol =:= -(ToRow-FromRow).
+%    write('Valid diagonal down_left!'), nl.
     
-% %black, top of board, down_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-%     ToRow>FromRow,
-%     ToRow =< 5,
-%     FromRow =< 5,
-%     ToCol-FromCol =:= ToRow-FromRow,
-%     write('Valid diagonal down_right!'), nl.
-
-% %black, bottom of board, down_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-%     ToRow>FromRow,
-%     ToRow >= 5,
-%     FromRow >= 5,
-%     ToCol-FromCol =:= -(ToRow-FromRow),
-%     write('Valid diagonal down_left!'), nl.
-    
-% %black, bottom of board, down_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-%     ToRow>FromRow,
-%     ToRow >= 5,
-%     FromRow >= 5,
-%     ToCol =:= FromCol,
-%     write('Valid diagonal down_right!'), nl.
+%black, bottom of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow>FromRow,
+    ToRow >= 5,
+    FromRow >= 5,
+    ToCol =:= FromCol.
+%    write('Valid diagonal down_right!'), nl.
 
 
-% %black, crossing of board, down_left
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
-%     ToRow>FromRow,
-%     FromRow < 5,
-%     ToRow > 5,
-%     (ToCol=:=FromCol-(5-FromRow);
-%     ToCol=:=FromCol+(5-ToRow)),
-%     write('Valid diagonal down_left!'), nl.
+%black, crossing of board, down_left
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_left):-
+    ToRow>FromRow,
+    FromRow < 5,
+    ToRow > 5,
+    (ToCol=:=FromCol-(5-FromRow);%%
+    ToCol=:=FromCol+(5-ToRow)). 
+%    write('Valid diagonal down_left!'), nl.
 
-% %black, crossing of board, down_right
-% diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
-%     ToRow>FromRow,
-%     FromRow < 5,
-%     ToRow > 5,
-%     (ToCol=:=FromCol+(5-FromRow);
-%     ToCol=:=FromCol-(5-ToRow)),
-%     write('Valid diagonal down_left!'), nl.
+%black, crossing of board, down_right
+diagonal_path(FromRow, FromCol, ToRow, ToCol, black, down_right):-
+    ToRow>FromRow,
+    FromRow < 5,
+    ToRow > 5,
+    (ToCol=:=FromCol+(5-FromRow);
+    ToCol=:=FromCol-(5-ToRow)).
+%    write('Valid diagonal down_left!'), nl.
+
 
 % Predicate to apply a valid move and update the game state.
 apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState) :- 
@@ -413,14 +279,57 @@ apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState)
     % Create the new state
     NewState = state(NewBoard, NewPlayer).
 
-% Predicate to get all valid moves of a Player
-valid_moves(state(Board, Player), ListOfMoves) :-
-    findall(Move, valid_move(state(Board, Player), Move), ListOfMoves).
+% Predicate to print all player positions
+print_player_positions(Board, Player) :-
+    find_all_player_positions(Board, Player, Positions),
+    print_positions(Positions).
+    
+print_positions([]).
+print_positions([(Row, Col, Player) | Rest]) :-
+    format("Player ~w piece at row ~w, column ~w~n", [Player, Row, Col]),
+    print_positions(Rest).
+    
 
-% Predicate to print all moves of a Player
-print_valid_moves(state(Board, Player)) :-
-    valid_moves(state(Board, Player), Moves),
-    print_moves(Moves).
+% Predicate to find all positions of a player's pieces
+find_all_player_positions(Board, Player, Positions) :-
+    find_all_player_positions(Board, Player, 1, 1, [], Positions).
+
+% Base case: no more rows to check
+find_all_player_positions([], _, _, _, Positions, Positions).
+
+% Recursive case: check the current row for player's pieces
+find_all_player_positions([Row|Rest], Player, RowIndex, ColIndex, Accumulator, Positions) :-
+    find_player_positions_in_row(Row, Player, RowIndex, 1, [], RowPositions),
+    NextRowIndex is RowIndex + 1,
+    append(Accumulator, RowPositions, NewAccumulator),
+    find_all_player_positions(Rest, Player, NextRowIndex, 1, NewAccumulator, Positions).
+
+% Predicate to find player's pieces in a row
+find_player_positions_in_row([], _, _, _, Positions, Positions).
+
+% Recursive case: check the current cell for a player's piece
+find_player_positions_in_row([Cell|Rest], Player, RowIndex, ColIndex, Accumulator, Positions) :-
+    (Cell = Player ->
+        append(Accumulator, [(RowIndex, ColIndex, Player)], NewAccumulator)
+    ;
+        NewAccumulator = Accumulator
+    ),
+    NextColIndex is ColIndex + 1,
+    find_player_positions_in_row(Rest, Player, RowIndex, NextColIndex, NewAccumulator, Positions).
+
+% Encontra todos os movimentos válidos a partir de todas as posições com peças do jogador atual
+valid_moves_for_current_player(state(Board, Player), ValidMoves) :-
+    find_all_player_positions(Board, Player, Positions),
+    find_all_valid_moves_for_positions(state(Board, Player), Positions, [], ValidMoves).
+
+% Encontra todos os movimentos válidos a partir de uma lista de posições
+find_all_valid_moves_for_positions(_, [], ValidMoves, ValidMoves).
+find_all_valid_moves_for_positions(State, [(FromRow, FromCol, Player) | Rest], Accumulator, ValidMoves) :-
+    valid_moves_from_position(State, FromRow, FromCol, MovesFromPosition),
+    append(Accumulator, MovesFromPosition, NewAccumulator),
+    find_all_valid_moves_for_positions(State, Rest, NewAccumulator, ValidMoves).
+
+
 
 % Predicate to print al list of moves
 print_moves([]).
@@ -437,20 +346,61 @@ game_over(GameState, black) :-
     % Check if a black piece has reached row 9
     piece_reached_row(GameState, black, 9).
 
+% Current player is loser, Opponent is winner
 %game_over(state(Board, white), black) :-
     % Check if there are no more valid moves for the current player
 %    valid_moves(state(Board, white), Moves),
-%    Moves == []. % No more valid moves 
-% Current player is loser, Opponent is winner
+%    Moves == [],
+%    write('No more valid moves for white :(').
 
-%game_over(state(Board, black), white) :-
-    % Check if there are no more valid moves for the current player
-%    valid_moves(state(Board, black), Moves),
-%    Moves == []. % No more valid moves 
 % Current player is loser, Opponent is winner
-    
+%game_over(state(Board, black), white) :-
+%    % Check if there are no more valid moves for the current player
+%    valid_moves(state(Board, black), Moves),
+%    Moves == [],
+%    write('No more valid moves for black :(').
+
 
 % Predicate to check if a piece of the given color has reached the specified row
 piece_reached_row(state(Board, _), Player, Row) :-
     nth1(Row, Board, RowList),
     member(Player, RowList).
+
+    print_board(Board) :-
+        nl,
+        print_board_with_index(Board, 1).
+    
+    print_board_with_index([], _). % Base case: no more rows
+    print_board_with_index([Row|Rest], Index) :-
+        print_row(Row, Index),
+        NextIndex is Index + 1,
+        print_board_with_index(Rest, NextIndex).
+    
+    print_spaces(0).
+    print_spaces(N) :-
+        N > 0,
+        write(' '),
+        N1 is N - 1,
+        print_spaces(N1).
+    
+    print_row(Row, Index) :-
+        write('     '), write(Index), % print the row index followed by a colon
+        write('  '), % spacing for visual clarity
+        length(Row, Length),
+        RowLength is (9 - Length),
+        print_spaces(RowLength),
+        print_cells(Row),
+        nl.
+    
+    
+    print_cells([]).
+    print_cells([Cell]) :-
+        print_cell(Cell).
+    print_cells([Cell | Rest]) :-
+        print_cell(Cell),
+        write(' '), % space between cells
+        print_cells(Rest).
+    
+    print_cell(none) :- write('.'). % use a dot for empty cells for better visibility
+    print_cell(white) :- write('W').
+    print_cell(black) :- write('B').
