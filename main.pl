@@ -23,14 +23,14 @@ initial_state(Board, white) :- initial_board(Board).
 
 play :-
     nl,
-    %FAZER LISTA DE REGRAS ANTES DO JOGO COMEÇAR
     write('1. Play'), nl,
-    write('2. Exit'), nl,
+    write('3. Exit'), nl,
     read(Option),
     nl,
     (
         Option = 1 -> start_game;
-        Option = 2 ->  write('Exiting the game.'), nl
+        Option = 2 -> write('Exiting the game.'), nl;
+        write('Invalid option'), nl, play
     ).
 
 print_game_state(state(Board, Player)) :-
@@ -38,23 +38,20 @@ print_game_state(state(Board, Player)) :-
     nl,
     write('Current Player: '), write(Player), nl.
 
-
-
 % Predicate to play the game.
-start_game :-
+start_game() :-
     initial_state(Board, white),
     game_loop(state(Board, white)).
 
 % Inside your game loop
 game_loop(state(Board, Player)) :-
-    print_game_state(state(Board, Player)), !,
-    print_player_positions(Board, Player),
+    print_game_state(state(Board, Player)),
     valid_moves_for_current_player(state(Board, Player), ValidMoves),
     length(ValidMoves, NumberOfMoves),
-    write(NumberOfMoves), nl, 
+    format("Player ~w has ~w possible moves~n", [Player, NumberOfMoves]),
     print_moves(ValidMoves),
     get_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)), 
-    apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState),
+    move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState),
     (
         game_over(NewState, Winner), % Check if game is over
         print_game_state(NewState), % Print final state
@@ -80,7 +77,7 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     get_piece(Board, FromRow, FromCol, Player),
 
     % Check if destination is empty
-    get_piece(Board, ToRow, ToCol, none), 
+    get_piece(Board, ToRow, ToCol, none),
 
     % Check if move follows a diagonal path
     diagonal_path(FromRow, FromCol, ToRow, ToCol),
@@ -196,13 +193,13 @@ diagonal_path(Row1, Col1, Row2, Col2) :-
 
 % check if position is within bound
 within_bounds(Row, Col) :-
-    between(1, 5, Row),        
-    MaxCols is 4 + Row,                     
+    between(1, 5, Row),
+    MaxCols is 4 + Row,
     % Para as primeiras 5 linhas
     between(1, MaxCols, Col).
     
 within_bounds(Row, Col) :-
-    between(5, 9, Row), 
+    between(5, 9, Row),
     % Para as linhas restantes
     MaxCols is 14 - Row,
     between(1, MaxCols, Col).
@@ -222,7 +219,7 @@ set_piece(Board, Row, Col, Piece, NewBoard) :-
     nth1(Col, NewRowList, Piece, RestCols).
 
 % Predicate to apply a valid move and update the game state.
-apply_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState) :- 
+move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState) :- 
     % Update the board
     set_piece(Board, ToRow, ToCol, Player, TempBoard),
     set_piece(TempBoard, FromRow, FromCol, none, NewBoard),
