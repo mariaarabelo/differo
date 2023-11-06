@@ -50,19 +50,25 @@ play :-
     seed_random,
     nl,
     display_rules,
+    show_options,
+    read(Option),
+    handle_option(Option).
+
+show_options :-
     write('1. Human vs Human'), nl,
     write('2. Human vs Bot'), nl,
     write('3. Bot vs Bot'), nl,
-    write('4. Exit'), nl,
-    read(Option),
-    nl,
-    (
-        Option = 1 -> start_game(human, human);
-        Option = 2 -> start_game(human, bot);
-        Option = 3 -> start_game(bot, bot);
-        Option = 4 -> write('Exiting the game.'), nl;
-        write('Invalid option'), nl, play
-    ).
+    write('4. Exit'), nl.
+
+handle_option(1) :- start_game(human, human).
+handle_option(2) :- start_game(human, bot).
+handle_option(3) :- start_game(bot, bot).
+handle_option(4) :- write('Exiting the game.'), nl.
+handle_option(_) :-
+    write('Invalid option'), nl,
+    play.
+
+% Rest of the predicates like seed_random, display_rules, start_game, etc. remain the same.
 
 
 % Predicate to play the game.
@@ -71,16 +77,19 @@ start_game(Player1Type, Player2Type) :-
     game_loop(state(Board, white), Player1Type, Player2Type).
 
 % Inside your game loop
-game_loop(state(Board, Player), Player1Type, Player2Type) :-
-
+game_loop(State, Player1Type, Player2Type) :-
+    State = state(Board, Player),
     print_board(Board), nl,
     write('Current Player: '), write(Player), nl,
-    (
-        Player == white -> Opponent = Player1Type;
-        Player == black -> Opponent = Player2Type
-    ),
-    choose_move(state(Board, Player), Opponent, Player, Move),
-    move(state(Board, Player), Move, state(NewBoard, NewPlayer)),
+    opponent(Player, Player1Type, Player2Type, Opponent),
+    choose_move(State, Opponent, Player, Move),
+    move(State, Move, NewState),
+    check_game_status(NewState, Player1Type, Player2Type).
+
+opponent(white, Player1Type, _, Player1Type).
+opponent(black, _, Player2Type, Player2Type).
+
+check_game_status(state(NewBoard, NewPlayer), Player1Type, Player2Type) :-
     (
         game_over(state(NewBoard, NewPlayer), Winner), % Check if game is over
         print_board(NewBoard), nl,
@@ -88,7 +97,6 @@ game_loop(state(Board, Player), Player1Type, Player2Type) :-
     ;
         game_loop(state(NewBoard, NewPlayer), Player1Type, Player2Type) % Continue game if not over
     ).
-
 
 % Adjust the choose_move predicate to handle difficulty levels
 choose_move(state(Board, Player), bot, Player, Move) :-
@@ -135,10 +143,10 @@ valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
     piece_reaches_opponent_goal(state(Board, Player), ToRow).
     % write('Valid move!'), nl.
 
-piece_reaches_opponent_goal(state(Board, white), ToRow):-
+piece_reaches_opponent_goal(state(_Board, white), ToRow):-
     ToRow \= 9.
 
-piece_reaches_opponent_goal(state(Board, black), ToRow):-
+piece_reaches_opponent_goal(state(_Board, black), ToRow):-
     ToRow \= 1.
 
 valid_steps(white, FromRow, ToRow, WhiteCount, BlackCount) :-
@@ -183,7 +191,7 @@ count_diagonal_pieces([(Row, Col, Piece)|Rest], FromRow, FromCol, ToRow, ToCol, 
     update_counts(Piece, CurrentWhiteCount, CurrentBlackCount, NewWhiteCount, NewBlackCount),
     count_diagonal_pieces(Rest, FromRow, FromCol, ToRow, ToCol, NewWhiteCount, NewBlackCount, WhiteCount, BlackCount).
 
-count_diagonal_pieces([(Row, Col, _)|Rest], FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount) :-
+count_diagonal_pieces([(_Row, _Col, _)|Rest], FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount) :-
     % For positions that are not on the diagonal path, we simply continue recursion without updating counts.
     count_diagonal_pieces(Rest, FromRow, FromCol, ToRow, ToCol, CurrentWhiteCount, CurrentBlackCount, WhiteCount, BlackCount), !.
 
@@ -195,16 +203,13 @@ update_counts(black, CurrentWhiteCount, CurrentBlackCount, CurrentWhiteCount, Ne
 
 update_counts(_, CurrentWhiteCount, CurrentBlackCount, CurrentWhiteCount, CurrentBlackCount).
 
-
-%  (5,6,7,4)
-
 % top of board
-diagonal_path(Row1, Col1, Row2, Col2) :- % (4,4,5,4)
+diagonal_path(Row1, Col1, Row2, Col2) :-
     (Row1 =<5, Row2=<5),
     (Col2=:=Col1).
 
 % top of board
-diagonal_path(Row1, Col1, Row2, Col2) :- % (4,2,3,1)
+diagonal_path(Row1, Col1, Row2, Col2) :-
     (Row1 =<5, Row2=<5),
     ((Col2-Col1)=:=(Row2-Row1)).
 
@@ -240,16 +245,15 @@ diagonal_path(Row1, Col1, Row2, Col2) :-
     Row2<5,
     Col2=:=Col1-(5-Row1).
 
-% check if position is within bound
+% check if position is within bounds for the first 5 rows
 within_bounds(Row, Col) :-
     between(1, 5, Row),
     MaxCols is 4 + Row,
-    % Para as primeiras 5 linhas
     between(1, MaxCols, Col).
     
+% check if position is within bounds for the rows after 5
 within_bounds(Row, Col) :-
     between(5, 9, Row),
-    % Para as linhas restantes
     MaxCols is 14 - Row,
     between(1, MaxCols, Col).
 
@@ -308,7 +312,6 @@ find_all_player_positions(Board, Player, PlayerPositions) :-
     get_all_positions(Board, AllPositions),
     filter_player_positions(AllPositions, Player, PlayerPositions).
 
-% AllPositions = [(Row, Col, Player), ...]
 
 filter_player_positions(AllPositions, Player, PlayerPositions):-
     filter_player_positions(AllPositions, Player, [], PlayerPositions).
@@ -329,7 +332,7 @@ valid_moves(state(Board, Player), ValidMoves) :-
 
 % Encontra todos os movimentos válidos a partir de uma lista de posições
 find_all_valid_moves_for_positions(_, [], ValidMoves, ValidMoves).
-find_all_valid_moves_for_positions(State, [(FromRow, FromCol, Player) | Rest], Accumulator, ValidMoves) :-
+find_all_valid_moves_for_positions(State, [(FromRow, FromCol, _Player) | Rest], Accumulator, ValidMoves) :-
     valid_moves_from_position(State, FromRow, FromCol, MovesFromPosition),
     append(Accumulator, MovesFromPosition, NewAccumulator),
     find_all_valid_moves_for_positions(State, Rest, NewAccumulator, ValidMoves).
@@ -396,7 +399,6 @@ print_row(Row, Index) :-
     print_spaces(RowLength),
     print_cells(Row),
     nl.
-
 
 print_cells([]).
 print_cells([Cell]) :-
