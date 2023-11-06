@@ -1,5 +1,14 @@
 :- use_module(library(between)).
 :- use_module(library(lists)).
+:- use_module(library(random)).
+:- use_module(library(system)).
+
+% Seed the random number generator
+seed_random :-
+    datime(datime(_, _, _, Hour, Min, Sec)), % Get current time components
+    Seed is (Hour * 3600 + Min * 60 + Sec),    % Calculate a seed value
+    setrand(Seed).                            % Seed the random generator
+
 
 % Initialize the initial game board with a size of 5 on each side.
 initial_board([
@@ -14,6 +23,22 @@ initial_board([
     [none, none, none, none, none]
 ]).
 
+% Display rules for differo
+display_rules:-
+    write('DIFFERO Game'), nl,
+    write('A game for two players on a hexagonal board with 5 spaces on each side.'), nl,
+    write('Each player has 13 pieces.'), nl,
+    write('Victory: You win when one of your pieces reaches the goal :)'), nl,
+    write('Defeat: You lose if you cannot move any of your pieces on your turn :('), nl, nl,
+    write('Rules:'), nl,
+    write('1. The piece moves in a diagonal line.'), nl,
+    write('2. The piece can jump over any number of pieces at once, whether they are yours or your opponent\'s.'), nl,
+    write('3. You can take (number of your pieces) - (number of opponent\'s pieces) steps on the diagonal to be moved.'), nl,
+    write('4. If this value is less than or equal to 0, the piece cannot move on the diagonal.'), nl,
+    write('5. You cannot move the piece off the board or into a place already occupied by another piece.'), nl,
+    write('6. You cannot move the piece into the opponent\'s goal.'), nl,
+    write('Good luck and enjoy playing DIFFERO!'), nl, nl.
+
 % Predicate to switch the player.
 switch_player(white, black).
 switch_player(black, white).
@@ -22,43 +47,74 @@ switch_player(black, white).
 initial_state(Board, white) :- initial_board(Board).
 
 play :-
+    seed_random,
     nl,
-    write('1. Play'), nl,
-    write('3. Exit'), nl,
+    display_rules,
+    write('1. Human vs Human'), nl,
+    write('2. Human vs Bot'), nl,
+    write('3. Bot vs Bot'), nl,
+    write('4. Exit'), nl,
     read(Option),
     nl,
     (
-        Option = 1 -> start_game;
-        Option = 2 -> write('Exiting the game.'), nl;
+        Option = 1 -> start_game(human, human);
+        Option = 2 -> start_game(human, bot);
+        Option = 3 -> start_game(bot, bot);
+        Option = 4 -> write('Exiting the game.'), nl;
         write('Invalid option'), nl, play
     ).
 
 print_game_state(state(Board, Player)) :-
     print_board(Board),
-    nl,
-    write('Current Player: '), write(Player), nl.
+    nl.
 
 % Predicate to play the game.
-start_game() :-
+start_game(Player1Type, Player2Type) :-
     initial_state(Board, white),
-    game_loop(state(Board, white)).
+    game_loop(state(Board, white), Player1Type, Player2Type).
 
 % Inside your game loop
-game_loop(state(Board, Player)) :-
+game_loop(state(Board, Player), Player1Type, Player2Type) :-
+
     print_game_state(state(Board, Player)),
-    valid_moves_for_current_player(state(Board, Player), ValidMoves),
-    length(ValidMoves, NumberOfMoves),
-    format("Player ~w has ~w possible moves~n", [Player, NumberOfMoves]),
-    print_moves(ValidMoves),
-    get_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)), 
-    move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol), NewState),
+    write('Current Player: '), write(Player), nl,
+    (
+        Player == white -> Opponent = Player1Type;
+        Player == black -> Opponent = Player2Type
+    ),
+    choose_move(state(Board, Player), Opponent, Player, Move),
+    move(state(Board, Player), Move, NewState),
     (
         game_over(NewState, Winner), % Check if game is over
         print_game_state(NewState), % Print final state
         write('Player '), write(Winner), write(' won!'), nl
     ;
-        game_loop(NewState) % Continue game if not over
+        game_loop(NewState, Player1Type, Player2Type) % Continue game if not over
     ).
+
+    % print_game_state(state(Board, Player)),
+    % choose_move(state(Board, Player), Opponent, Player, Move),
+    % move(state(Board, Player), Move, NewState),
+    % (
+    %     game_over(NewState, Winner), % Check if game is over
+    %     print_game_state(NewState), % Print final state
+    %     write('Player '), write(Winner), write(' won!'), nl
+    % ;
+    %     game_loop(NewState, Opponent) % Continue game if not over
+    % ).
+
+choose_move(state(Board, Player), bot, Player, Move) :-
+    valid_moves_for_current_player(state(Board, Player), ValidMoves),
+    random_member(Move, ValidMoves),
+    nl, write('Bot '), write(Player), write(' move: '), write(Move), nl.
+
+choose_move(state(Board, Player), human, _, Move) :-
+    valid_moves_for_current_player(state(Board, Player), ValidMoves),
+    length(ValidMoves, NumberOfMoves),
+    format("Player ~w has ~w possible moves~n", [Player, NumberOfMoves]),
+    print_moves(ValidMoves),
+    valid_moves_for_current_player(state(Board, Player), ValidMoves),
+    get_move(state(Board, Player), Move).
 
 %Predicate to get the move from the player.
 get_move(state(Board, Player), Move) :-
@@ -100,7 +156,7 @@ valid_steps(white, FromRow, ToRow, WhiteCount, BlackCount) :-
 valid_steps(black, FromRow, ToRow, WhiteCount, BlackCount) :-
     Steps is BlackCount - WhiteCount,
     Steps > 0,
-    Steps =:= (ToRow-FromRow).
+    Steps =:= (ToRow-FromRow). %Steps =:= abs(ToRow-FromRow)
 
 
 % Count pieces on diagonal
