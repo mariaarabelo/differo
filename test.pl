@@ -58,12 +58,28 @@ play :-
     nl,
     (
         Option = 1 -> start_game(human, human);
-        Option = 2 -> start_game(human, bot);
-        Option = 3 -> start_game(bot, bot);
+        Option = 2 -> bot_difficulty(human);
+        Option = 3 -> bot_difficulty(bot);
         Option = 4 -> write('Exiting the game.'), nl;
         write('Invalid option'), nl, play
     ).
 
+
+bot_difficulty(OtherPlayerType) :-
+    write('Select Bot Difficulty:'), nl,
+    write('1. Easy (Random Choices)'), nl,
+    write('2. Hard (Best Choice)'), nl,
+    read(DifficultyOption),
+    (
+        DifficultyOption = 1 -> start_game(OtherPlayerType, bot(easy));
+        DifficultyOption = 2 -> start_game(OtherPlayerType, bot(hard));
+        write('Invalid option'), nl, bot_difficulty(OtherPlayerType)
+    ).
+
+print_game_state(state(Board, Player)) :-
+    print_board(Board),
+    write('Current Player: '), write(Player), nl,
+    nl.
 
 % Predicate to play the game.
 start_game(Player1Type, Player2Type) :-
@@ -73,28 +89,34 @@ start_game(Player1Type, Player2Type) :-
 % Inside your game loop
 game_loop(state(Board, Player), Player1Type, Player2Type) :-
 
-    print_board(Board), nl,
-    write('Current Player: '), write(Player), nl,
+    print_game_state(state(Board, Player)),
+    
     (
         Player == white -> Opponent = Player1Type;
         Player == black -> Opponent = Player2Type
     ),
     choose_move(state(Board, Player), Opponent, Player, Move),
-    move(state(Board, Player), Move, state(NewBoard, NewPlayer)),
+    move(state(Board, Player), Move, NewGameState),
     (
-        game_over(state(NewBoard, NewPlayer), Winner), % Check if game is over
-        print_board(NewBoard), nl,
+        game_over(NewGameState, Winner), % Check if game is over
+        print_game_state(NewGameState), % Print final state
         write('Player '), write(Winner), write(' won!'), nl
     ;
-        game_loop(state(NewBoard, NewPlayer), Player1Type, Player2Type) % Continue game if not over
+        game_loop(NewGameState, Player1Type, Player2Type) % Continue game if not over
     ).
 
 
 % Adjust the choose_move predicate to handle difficulty levels
-choose_move(state(Board, Player), bot, Player, Move) :-
+choose_move(state(Board, Player), bot(Difficulty), Player, Move) :-
     valid_moves(state(Board, Player), ValidMoves),
-    random_member(Move, ValidMoves),
-    nl, write('Bot '), write(Player), write(' move: '), write(Move), nl.
+    (
+        Difficulty == easy ->
+            random_member(Move, ValidMoves),
+            nl, write('Easy Bot '), write(Player), write(' move: '), write(Move), nl;
+        Difficulty == hard ->
+            find_best_move(Player, ValidMoves, Move),
+            nl, write('Hard Bot '), write(Player), write(' move: '), write(Move), nl
+    ).
 
 choose_move(state(Board, Player), human, Player, Move) :-
     valid_moves(state(Board, Player), ValidMoves),
@@ -112,6 +134,43 @@ get_move(state(Board, Player), Move) :-
     read(Move),
     valid_move(state(Board, Player), Move),
     !.
+
+% ValidMoves == [(FromRow, FromCol, ToRow, ToCol)]
+% Black player goal: get to the row 9 of the board (Select the maximum ToRow possible in the list)
+% White player goal: get to the row 1 of the board (Select the minimum ToRow possible in the list)
+% find_best_move(ValidMoves, BestMove) :-
+    %Implement a logic that always selects the move that takes a piece the closest to the player goal
+    % member(BestMove, ValidMoves).
+
+% Selects the move that gets black closest to row 9.
+find_best_move(black, ValidMoves, BestMove) :-
+    findall(TR, member((FR, FC, TR,TC), ValidMoves), ToRows),
+    max_list(ToRows, MaxRow),
+    member(BestMove, ValidMoves),
+    BestMove = (FR, FC, MaxRow, TC).
+
+% Selects the move that gets white closest to row 1.
+find_best_move(white, ValidMoves, BestMove) :-
+    findall(TR, member((FR, FC, TR,TC), ValidMoves), ToRows),
+    min_list(ToRows, MinRow),
+    member(BestMove, ValidMoves),
+    BestMove = (FR, FC, MinRow, TC).
+
+max_list([X], X). % The max of a single-element list is the element itself.
+max_list([X,Y|Rest], Max) :-
+   (  X >= Y
+   -> max_list([X|Rest], Max)
+   ;  max_list([Y|Rest], Max)
+   ).
+
+min_list([X], X). % The min of a single-element list is the element itself.
+min_list([X,Y|Rest], Min) :-
+   (  X =< Y
+   -> min_list([X|Rest], Min)
+   ;  min_list([Y|Rest], Min)
+   ).
+
+
 
 % Check if the move is valid.
 valid_move(state(Board, Player), move(FromRow, FromCol, ToRow, ToCol)) :-
