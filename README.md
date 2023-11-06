@@ -90,16 +90,12 @@ User move is gotten with the get_move/2 predicate.
 
 In order to verify that, we check if any piece of the current player reached its goal and if any player is out of moves.
 
-### Game State Evaluation
-- value/3 assesses the game state, potentially used for AI decision-making.
-????????????
-
 ### Computer Plays
-- choose_move/4 allows the computer to make moves based on a given level (1: random, 2: greedy)
- ??????????????
+- `choose_move/4` allows the computer to make random moves.
+- `seed_random/0` seed the random number generator.
 
 ## Conclusions
-This DIFFERO Prolog implementation offers a functional game with core features. Known issues include [describe any known issues]. Future improvements may involve [mention potential enhancements].
+This DIFFERO Prolog implementation offers a functional game with core features. Known issues include the different format of board that brought complexities to the game logic. Future improvements may involve including levels of difficulty to the bots.
 
 ## Bibliography
 - https://boardgamegeek.com/boardgame/375056/differo
